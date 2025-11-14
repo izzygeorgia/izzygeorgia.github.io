@@ -1,160 +1,407 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CookSync Timer</title>
-  <style>
-    body {
-      font-family: system-ui, sans-serif;
-      background: #fffaf6;
-      color: #333;
-      margin: 0;
-      padding: 2rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    h1 {
-      color: #d35400;
-      margin-bottom: 0.5rem;
-    }
-    form, .schedule {
-      width: 100%;
-      max-width: 600px;
-      background: white;
-      padding: 1.5rem;
-      border-radius: 1rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      margin-bottom: 2rem;
-    }
-    label {
-      display: block;
-      margin: 0.5rem 0 0.25rem;
-    }
-    input {
-      width: 100%;
-      padding: 0.5rem;
-      border: 1px solid #ccc;
-      border-radius: 0.5rem;
-    }
-    button {
-      background: #d35400;
-      color: white;
-      border: none;
-      padding: 0.75rem 1.25rem;
-      border-radius: 0.5rem;
-      font-size: 1rem;
-      cursor: pointer;
-      margin-top: 1rem;
-    }
-    button:hover {
-      background: #b84300;
-    }
-    .dish {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      margin-bottom: 0.5rem;
-    }
-    .dish input {
-      flex: 1;
-    }
-    .timeline {
-      list-style: none;
-      padding: 0;
-    }
-    .timeline li {
-      background: #f9f3ef;
-      margin: 0.5rem 0;
-      padding: 0.75rem;
-      border-left: 4px solid #d35400;
-      border-radius: 0.25rem;
-    }
-  </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CookSync — Smart Cooking Timers</title>
+  <style>
+    :root{--bg:#fff9f3;--card:#fff;--accent:#d35400;--muted:#666;--prep:#2e8b57;--cook:#d35400;--rest:#2b7ed9;--group:#7b61ff}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:var(--bg);color:#222}
+    header{padding:0.75rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+    h1{margin:0;color:var(--accent)}
+    main{display:flex;gap:1rem;padding:1rem}
+    .panel{background:var(--card);padding:1rem;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06);flex:1}
+    .small{font-size:0.9rem;color:var(--muted)}
+    .controls{display:flex;gap:0.5rem;margin-top:0.75rem}
+    button{background:var(--accent);color:white;border:none;padding:0.6rem 0.9rem;border-radius:10px;cursor:pointer}
+    button.secondary{background:#777}
+    .muted-btn{background:#eee;color:#333}
+
+    .item{border-radius:10px;padding:0.6rem;background:#faf6f4;margin-bottom:0.6rem}
+    .item-head{display:flex;gap:0.6rem;align-items:center}
+    .item-head input.name{flex:1;padding:0.45rem;border-radius:8px;border:1px solid #ddd}
+    .phase-row{display:flex;gap:0.45rem;margin-top:0.5rem}
+    .phase-row input{width:80px;padding:0.4rem;border-radius:6px;border:1px solid #ddd}
+    .mini{font-size:0.85rem;color:var(--muted)}
+    .subtasks{margin-top:0.5rem;padding-left:0.5rem}
+    .subtask{display:flex;gap:0.4rem;align-items:center;margin-bottom:0.35rem}
+    .subtask input[type=text]{flex:1;padding:0.4rem;border-radius:6px}
+    .subtask input[type=number]{width:72px;padding:0.35rem}
+    .subtask .offset{width:72px}
+
+    .timers{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0.75rem}
+    .timer-card{border-radius:10px;padding:0.8rem;box-shadow:0 3px 10px rgba(0,0,0,0.05);background:linear-gradient(180deg,#fff,#fff)}
+    .timer-title{font-weight:700}
+    .timer-digital{font-family:'Roboto Mono',monospace;font-size:1.8rem;margin-top:0.35rem}
+    .timer-phase{font-size:0.9rem;color:var(--muted);margin-top:0.25rem}
+    .timer-actions{display:flex;gap:0.5rem;margin-top:0.5rem}
+
+    .sidebar{width:420px}
+    .schedule-card{background:var(--card);padding:1rem;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+    .timeline{display:flex;flex-direction:column;gap:0.35rem;margin-top:0.6rem}
+    .time-row{display:flex;gap:0.6rem;align-items:flex-start}
+    .time-col{width:68px;text-align:right;font-weight:700;color:#333}
+    .events-col{flex:1}
+    .event-group{background:#fbf6ff;border-left:6px solid var(--group);padding:0.45rem;border-radius:8px}
+    .event{padding:0.25rem 0}
+    .event .tag{font-size:0.85rem;padding:0.12rem 0.35rem;border-radius:6px;margin-right:0.4rem}
+    .tag.prep{background:rgba(46,139,87,0.08);color:var(--prep)}
+    .tag.cook{background:rgba(211,84,0,0.07);color:var(--cook)}
+    .tag.rest{background:rgba(43,126,217,0.07);color:var(--rest)}
+
+    .banner{position:fixed;left:50%;transform:translateX(-50%);top:12px;background:rgba(255,255,255,0.98);padding:0.6rem 1rem;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.12);display:flex;gap:1rem;align-items:center}
+    .banner .big{font-weight:800;font-size:1.05rem}
+
+    .top-controls{display:flex;gap:0.5rem;align-items:center}
+    .muted{opacity:0.6}
+
+    @media(max-width:980px){main{flex-direction:column}.sidebar{width:100%}}
+  </style>
 </head>
 <body>
-  <h1>CookSync Timer</h1>
-  <p>Plan your meal perfectly — enter what you’re cooking and when you want it ready.</p>
+  <header>
+    <div>
+      <h1>CookSync</h1>
+      <div class="small">Smart backwards scheduler — grouped timeline & live timers</div>
+    </div>
+    <div class="top-controls">
+      <div class="mini" id="upNext">Up next: —</div>
+      <div class="mini" id="estimatedEating">Estimated eating: —</div>
+      <button id="saveBtn" class="muted-btn">Save</button>
+      <label class="mini" style="margin-left:8px">Sound:
+        <select id="soundSelect" class="mini" style="margin-left:6px;padding:4px">
+          <option value="ding">Kitchen ding (default)</option>
+          <option value="beep">Digital beep</option>
+          <option value="chime">Chime</option>
+          <option value="wood">Wood tap</option>
+        </select>
+      </label>
+      <button id="muteBtn" class="secondary">Mute</button>
+    </div>
+  </header>
 
-  <form id="cookForm">
-    <label>Ready by (time):</label>
-    <input type="time" id="readyTime" required>
+  <main>
+    <section class="panel" id="planPanel">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <h2>Plan your meal</h2>
+          <div class="small">Click Start cooking to begin. You can collapse this panel to focus on timers.</div>
+        </div>
+        <button id="collapsePlan" class="muted-btn">Collapse plan</button>
+      </div>
+      <label class="mini" for="readyTime">Ready by</label>
+      <input type="time" id="readyTime" style="margin-top:6px" />
 
-    <div id="dishes"></div>
+      <div style="margin-top:0.6rem;display:flex;gap:0.5rem;align-items:center">
+        <button id="addItemBtn">+ Add item</button>
+        <button id="loadSample" class="secondary">Load sample</button>
+        <div style="flex:1"></div>
+        <button id="generateBtn" class="secondary">Generate</button>
+      </div>
 
-    <button type="button" id="addDish">+ Add Dish</button><br>
-    <button type="submit">Generate Schedule</button>
-  </form>
+      <div id="items" style="margin-top:0.8rem"></div>
 
-  <div class="schedule" id="schedule" style="display:none;">
-    <h2>Your Cooking Schedule</h2>
-    <ul class="timeline" id="timeline"></ul>
-  </div>
+      <div class="controls" style="margin-top:0.6rem">
+        <button id="startBtn">Start cooking</button>
+        <button id="clearBtn" class="secondary">Clear</button>
+      </div>
 
-  <script>
-    const dishesDiv = document.getElementById('dishes');
-    const addDishBtn = document.getElementById('addDish');
-    const form = document.getElementById('cookForm');
-    const scheduleDiv = document.getElementById('schedule');
-    const timeline = document.getElementById('timeline');
+      <hr style="margin:0.9rem 0">
+      <h3 style="margin:0 0 8px 0">Live timers</h3>
+      <div class="timers" id="timers"></div>
+    </section>
 
-    let dishCount = 0;
+    <aside class="sidebar">
+      <div class="schedule-card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">Timeline</h3>
+          <span id="toggleTimeline" class="mini collapse">Collapse</span>
+        </div>
+        <div class="small" style="margin-top:6px">Grouped events (click a time to expand)</div>
+        <div class="timeline" id="timeline"></div>
+      </div>
+    </aside>
+  </main>
 
-    addDishBtn.addEventListener('click', () => {
-      dishCount++;
-      const div = document.createElement('div');
-      div.classList.add('dish');
-      div.innerHTML = `
-        <input type="text" placeholder="Dish name" required id="dishName${dishCount}">
-        <input type="number" placeholder="Time (minutes)" required id="dishTime${dishCount}">
-      `;
-      dishesDiv.appendChild(div);
-    });
+  <div id="banner" class="banner" style="display:none">
+    <div class="big">Started at <span id="startedAt">—</span></div>
+    <div class="big">Ends at <span id="endsAt">—</span></div>
+    <button id="stopBtn" class="secondary" style="margin-left:8px">Stop</button>
+  </div>
 
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const readyBy = document.getElementById('readyTime').value;
-      if (!readyBy) return;
+  <script>
+    // ********** Data model **********
+    const state = { readyTime:null, items:[], schedule:[], running:false, startShift:0, intervalId: null };
+    const uid = () => Math.random().toString(36).slice(2,9);
+    const minutes = m => m*60000;
+    const fmtTime = d => d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const now = () => new Date();
+    const $ = id => document.getElementById(id);
 
-      const readyDate = new Date();
-      const [hours, minutes] = readyBy.split(':').map(Number);
-      readyDate.setHours(hours, minutes, 0, 0);
+    function makeEmptyItem(){ return {id:uid(), name:'', prep:{duration:null, subtasks:[]}, cook:{duration:null, subtasks:[]}, rest:{duration:null, subtasks:[]}, instructions:''} }
 
-      const dishes = [];
-      for (let i = 1; i <= dishCount; i++) {
-        const name = document.getElementById(`dishName${i}`).value;
-        const mins = parseInt(document.getElementById(`dishTime${i}`).value);
-        if (name && mins) dishes.push({ name, mins });
-      }
+    function sumDur(list){ return list ? list.reduce((s,x)=>s+(Number(x.duration)||0),0) : 0; }
 
-      // Sort dishes by cook time (longest first)
-      dishes.sort((a, b) => b.mins - a.mins);
+    function buildSchedule(readyDate, items){
+      if (!readyDate) return [];
+      const events=[];
+      items.forEach(it=>{
+        const restDur = Number(it.rest.duration) || sumDur(it.rest.subtasks);
+        const cookDur = Number(it.cook.duration) || sumDur(it.cook.subtasks);
+        const prepDur = Number(it.prep.duration) || sumDur(it.prep.subtasks);
 
-      timeline.innerHTML = '';
-      let schedule = [];
+        // Calculate timings backwards from readyDate
+        const restEnd = new Date(readyDate.getTime());
+        const restStart = new Date(restEnd.getTime() - minutes(restDur));
+        const cookEnd = new Date(restStart.getTime());
+        const cookStart = new Date(cookEnd.getTime() - minutes(cookDur));
+        const prepEnd = new Date(cookStart.getTime());
+        const prepStart = new Date(prepEnd.getTime() - minutes(prepDur));
 
-      dishes.forEach(dish => {
-        const startTime = new Date(readyDate.getTime() - dish.mins * 60000);
-        schedule.push({
-          name: dish.name,
-          start: startTime,
-          finish: readyDate
-        });
-      });
+        // Prep events
+        if(it.prep.subtasks && it.prep.subtasks.length>0){
+          let cursor = new Date(prepStart.getTime());
+          it.prep.subtasks.forEach(s=>{
+            const start = new Date(cursor.getTime());
+            events.push({time:start, type:'prep', itemId:it.id, text:`${it.name||'Unnamed'} prep: ${s.name||''}`, duration:Number(s.duration)||0});
+            cursor = new Date(start.getTime() + minutes(Number(s.duration)||0));
+          });
+        } else if(prepDur>0){
+          events.push({time:prepStart,type:'prep',itemId:it.id,text:`${it.name||'Unnamed'} prep`,duration:prepDur});
+        }
 
-      schedule.sort((a,b) => a.start - b.start);
+        // Cook events
+        if(cookDur>0){
+          events.push({time:cookStart,type:'cook',itemId:it.id,text:`Start cooking: ${it.name||'Unnamed'}`,duration:cookDur});
+        }
+        if(it.cook.subtasks && it.cook.subtasks.length>0){
+          it.cook.subtasks.forEach(s=>{
+            const t = new Date(cookStart.getTime() + minutes(Number(s.offset)||0));
+            events.push({time:t,type:'cook',itemId:it.id,text:`${it.name||'Unnamed'}: ${s.name||''}`,duration:Number(s.duration)||0,offset:Number(s.offset)||0});
+          });
+        }
+        
+        // Rest events
+        if(restDur>0){
+          events.push({time:restStart,type:'rest',itemId:it.id,text:`Remove ${it.name||'Unnamed'} — rest`,duration:restDur});
+        }
+      });
+      events.sort((a,b)=>a.time-b.time);
 
-      schedule.forEach(item => {
-        const startStr = item.start.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-        const finishStr = item.finish.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-        const li = document.createElement('li');
-        li.textContent = `${item.name}: Start at ${startStr}, finish by ${finishStr}`;
-        timeline.appendChild(li);
-      });
+      // Group events by the minute they start
+      const groupedSchedule = [];
+      events.forEach(event => {
+        const minuteStart = new Date(event.time);
+        minuteStart.setSeconds(0, 0); // Group by the exact minute
+        const fmtTimeKey = fmtTime(minuteStart);
 
-      scheduleDiv.style.display = 'block';
-    });
-  </script>
+        let group = groupedSchedule.find(g => fmtTime(g.time) === fmtTimeKey);
+        if (!group) {
+          group = { time: minuteStart, events: [], expanded: false };
+          groupedSchedule.push(group);
+        }
+        group.events.push(event);
+      });
+
+      return groupedSchedule;
+    }
+    
+    // ********** UI Rendering **********
+
+    // Renders the Plan items (meal, durations, subtasks)
+    function renderPlan(){
+      const itemsEl = $('items');
+      itemsEl.innerHTML = '';
+      state.items.forEach(item => {
+        itemsEl.innerHTML += `
+          <div class="item" data-id="${item.id}">
+            <div class="item-head">
+              <input type="text" class="name" placeholder="Dish name (e.g., Steak)" value="${item.name || ''}" 
+                onchange="updateItem('${item.id}', 'name', this.value)">
+              <button class="muted-btn" onclick="removeItem('${item.id}')">X</button>
+            </div>
+            <div class="phase-row">
+              <label class="mini">Prep (min): <input type="number" value="${item.prep.duration||''}" onchange="updateItemPhase('${item.id}', 'prep', 'duration', this.value)"></label>
+              <label class="mini">Cook (min): <input type="number" value="${item.cook.duration||''}" onchange="updateItemPhase('${item.id}', 'cook', 'duration', this.value)"></label>
+              <label class="mini">Rest (min): <input type="number" value="${item.rest.duration||''}" onchange="updateItemPhase('${item.id}', 'rest', 'duration', this.value)"></label>
+            </div>
+          </div>
+        `;
+      });
+      renderTimeline(); // Update timeline whenever items change
+    }
+
+    // Renders the Timeline/Schedule
+    function renderTimeline(){
+      const timelineEl = $('timeline');
+      if(!state.readyTime) {
+        timelineEl.innerHTML = '<div class="small" style="text-align:center;padding:1rem">Set a "Ready by" time to see the schedule.</div>';
+        return;
+      }
+
+      state.schedule = buildSchedule(state.readyTime, state.items);
+      
+      let html = '';
+      state.schedule.forEach(group => {
+        html += `
+          <div class="time-row">
+            <div class="time-col">${fmtTime(group.time)}</div>
+            <div class="events-col">
+              <div class="event-group">
+                ${group.events.map(event => `
+                  <div class="event">
+                    <span class="tag ${event.type}">${event.type.toUpperCase()}</span>
+                    ${event.text}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      timelineEl.innerHTML = html || '<div class="small" style="text-align:center;padding:1rem">No items added yet.</div>';
+    }
+
+
+    // ********** State Mutators **********
+
+    window.updateItem = function(id, key, value){
+      const item = state.items.find(i => i.id === id);
+      if(item) {
+        item[key] = value;
+        renderTimeline();
+      }
+    }
+
+    window.updateItemPhase = function(id, phase, key, value){
+      const item = state.items.find(i => i.id === id);
+      if(item) {
+        item[phase][key] = Number(value) || null;
+        renderTimeline();
+      }
+    }
+
+    window.removeItem = function(id){
+      state.items = state.items.filter(i => i.id !== id);
+      renderPlan();
+    }
+
+    // ********** Core Application Logic **********
+
+    function startCooking(){
+      if(state.running) return;
+      
+      if(state.items.length === 0 || !state.readyTime) {
+        alert("Please set a 'Ready by' time and add at least one item first.");
+        return;
+      }
+
+      state.running = true;
+      state.startShift = now().getTime(); // Mark the start of the schedule execution
+      
+      $('banner').style.display = 'flex';
+      $('startedAt').textContent = fmtTime(now());
+      $('endsAt').textContent = fmtTime(state.readyTime);
+
+      $('startBtn').disabled = true;
+      $('clearBtn').disabled = true;
+      $('addItemBtn').disabled = true;
+
+      // Start the main timer loop (simplified for demonstration)
+      state.intervalId = setInterval(timerLoop, 1000);
+      timerLoop(); // Initial run
+    }
+
+    function stopCooking(){
+      state.running = false;
+      clearInterval(state.intervalId);
+      state.intervalId = null;
+
+      $('banner').style.display = 'none';
+      $('startBtn').disabled = false;
+      $('clearBtn').disabled = false;
+      $('addItemBtn').disabled = false;
+
+      $('timers').innerHTML = ''; // Clear live timers
+    }
+
+    function timerLoop(){
+      if(!state.running) return;
+
+      // Very simple timer display logic for demonstration:
+      const msLeft = state.readyTime.getTime() - now().getTime();
+      const totalSecondsLeft = Math.floor(msLeft / 1000);
+      
+      if(totalSecondsLeft < 0) {
+        $('timers').innerHTML = '<div class="timer-card">Meal is ready!</div>';
+        stopCooking();
+        return;
+      }
+
+      const mins = Math.floor(totalSecondsLeft / 60);
+      const secs = totalSecondsLeft % 60;
+      const fmtTimeLeft = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+      
+      $('timers').innerHTML = `
+        <div class="timer-card">
+          <div class="timer-title">Time until READY</div>
+          <div class="timer-digital">${fmtTimeLeft}</div>
+        </div>
+      `;
+    }
+
+    function loadSample(){
+      const sampleReadyTime = now();
+      sampleReadyTime.setMinutes(sampleReadyTime.getMinutes() + 60); // Ready in 1 hour
+
+      // Format for the time input (HH:MM)
+      const hour = String(sampleReadyTime.getHours()).padStart(2, '0');
+      const minute = String(sampleReadyTime.getMinutes()).padStart(2, '0');
+      $('readyTime').value = `${hour}:${minute}`;
+      
+      state.readyTime = sampleReadyTime;
+
+      state.items = [
+        { id: uid(), name: 'Steak', prep: { duration: 5, subtasks: [] }, cook: { duration: 15, subtasks: [] }, rest: { duration: 10, subtasks: [] }, instructions: '' },
+        { id: uid(), name: 'Roasted Veggies', prep: { duration: 10, subtasks: [] }, cook: { duration: 30, subtasks: [] }, rest: { duration: 0, subtasks: [] }, instructions: '' },
+      ];
+      
+      renderPlan();
+    }
+
+    function clearPlan(){
+      stopCooking();
+      state.readyTime = null;
+      state.items = [];
+      $('readyTime').value = '';
+      renderPlan();
+      $('timers').innerHTML = '';
+    }
+
+    // ********** Event Listeners **********
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize the plan view
+      renderPlan(); 
+
+      // Hook up button clicks
+      $('startBtn').addEventListener('click', startCooking);
+      $('stopBtn').addEventListener('click', stopCooking);
+      $('clearBtn').addEventListener('click', clearPlan);
+      $('loadSample').addEventListener('click', loadSample);
+      $('addItemBtn').addEventListener('click', () => {
+        state.items.push(makeEmptyItem());
+        renderPlan();
+      });
+      $('readyTime').addEventListener('change', (e) => {
+        const [h, m] = e.target.value.split(':').map(Number);
+        const date = now();
+        date.setHours(h, m, 0, 0); // Set time, keeping date part
+        state.readyTime = date;
+        renderTimeline();
+      });
+    });
+  </script>
 </body>
 </html>
