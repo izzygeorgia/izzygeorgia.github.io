@@ -179,6 +179,200 @@
       events.sort((a,b)=>a.time-b.time);
       return events;
     }
+
+    // Renders the Plan items (meal, durations, subtasks)
+    function renderPlan(){
+      const itemsEl = $('items');
+      itemsEl.innerHTML = '';
+      state.items.forEach(item => {
+        itemsEl.innerHTML += `
+          <div class="item" data-id="${item.id}">
+            <div class="item-head">
+              <input type="text" class="name" placeholder="Dish name (e.g., Steak)" value="${item.name || ''}" 
+                onchange="updateItem('${item.id}', 'name', this.value)">
+              <button class="muted-btn" onclick="removeItem('${item.id}')">X</button>
+            </div>
+            <div class="phase-row">
+              <label class="mini">Prep (min): <input type="number" value="${item.prep.duration||''}" onchange="updateItemPhase('${item.id}', 'prep', 'duration', this.value)"></label>
+              <label class="mini">Cook (min): <input type="number" value="${item.cook.duration||''}" onchange="updateItemPhase('${item.id}', 'cook', 'duration', this.value)"></label>
+              <label class="mini">Rest (min): <input type="number" value="${item.rest.duration||''}" onchange="updateItemPhase('${item.id}', 'rest', 'duration', this.value)"></label>
+            </div>
+          </div>
+        `;
+      });
+      renderTimeline(); // Update timeline whenever items change
+    }
+
+    // Renders the Timeline/Schedule
+    function renderTimeline(){
+      const timelineEl = $('timeline');
+      if(!state.readyTime) {
+        timelineEl.innerHTML = '<div class="small" style="text-align:center;padding:1rem">Set a "Ready by" time to see the schedule.</div>';
+        return;
+      }
+
+      state.schedule = buildSchedule(state.readyTime, state.items);
+      
+      let html = '';
+      state.schedule.forEach(group => {
+        html += `
+          <div class="time-row">
+            <div class="time-col">${fmtTime(group.time)}</div>
+            <div class="events-col">
+              <div class="event-group">
+                ${group.events.map(event => `
+                  <div class="event">
+                    <span class="tag ${event.type}">${event.type.toUpperCase()}</span>
+                    ${event.text}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      timelineEl.innerHTML = html || '<div class="small" style="text-align:center;padding:1rem">No items added yet.</div>';
+    }
+
+
+    // ********** State Mutators **********
+
+    window.updateItem = function(id, key, value){
+      const item = state.items.find(i => i.id === id);
+      if(item) {
+        item[key] = value;
+        renderTimeline();
+      }
+    }
+
+    window.updateItemPhase = function(id, phase, key, value){
+      const item = state.items.find(i => i.id === id);
+      if(item) {
+        item[phase][key] = Number(value) || null;
+        renderTimeline();
+      }
+    }
+
+    window.removeItem = function(id){
+      state.items = state.items.filter(i => i.id !== id);
+      renderPlan();
+    }
+
+    // ********** Core Application Logic **********
+
+    function startCooking(){
+      if(state.running) return;
+      
+      if(state.items.length === 0 || !state.readyTime) {
+        alert("Please set a 'Ready by' time and add at least one item first.");
+        return;
+      }
+
+      state.running = true;
+      state.startShift = now().getTime(); // Mark the start of the schedule execution
+      
+      $('banner').style.display = 'flex';
+      $('startedAt').textContent = fmtTime(now());
+      $('endsAt').textContent = fmtTime(state.readyTime);
+
+      $('startBtn').disabled = true;
+      $('clearBtn').disabled = true;
+      $('addItemBtn').disabled = true;
+
+      // Start the main timer loop (simplified for demonstration)
+      state.intervalId = setInterval(timerLoop, 1000);
+      timerLoop(); // Initial run
+    }
+
+    function stopCooking(){
+      state.running = false;
+      clearInterval(state.intervalId);
+      state.intervalId = null;
+
+      $('banner').style.display = 'none';
+      $('startBtn').disabled = false;
+      $('clearBtn').disabled = false;
+      $('addItemBtn').disabled = false;
+
+      $('timers').innerHTML = ''; // Clear live timers
+    }
+
+    function timerLoop(){
+      if(!state.running) return;
+
+      // Very simple timer display logic for demonstration:
+      const msLeft = state.readyTime.getTime() - now().getTime();
+      const totalSecondsLeft = Math.floor(msLeft / 1000);
+      
+      if(totalSecondsLeft < 0) {
+        $('timers').innerHTML = '<div class="timer-card">Meal is ready!</div>';
+        stopCooking();
+        return;
+      }
+
+      const mins = Math.floor(totalSecondsLeft / 60);
+      const secs = totalSecondsLeft % 60;
+      const fmtTimeLeft = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+      
+      $('timers').innerHTML = `
+        <div class="timer-card">
+          <div class="timer-title">Time until READY</div>
+          <div class="timer-digital">${fmtTimeLeft}</div>
+        </div>
+      `;
+    }
+
+    function loadSample(){
+      const sampleReadyTime = now();
+      sampleReadyTime.setMinutes(sampleReadyTime.getMinutes() + 60); // Ready in 1 hour
+
+      // Format for the time input (HH:MM)
+      const hour = String(sampleReadyTime.getHours()).padStart(2, '0');
+      const minute = String(sampleReadyTime.getMinutes()).padStart(2, '0');
+      $('readyTime').value = `${hour}:${minute}`;
+      
+      state.readyTime = sampleReadyTime;
+
+      state.items = [
+        { id: uid(), name: 'Steak', prep: { duration: 5, subtasks: [] }, cook: { duration: 15, subtasks: [] }, rest: { duration: 10, subtasks: [] }, instructions: '' },
+        { id: uid(), name: 'Roasted Veggies', prep: { duration: 10, subtasks: [] }, cook: { duration: 30, subtasks: [] }, rest: { duration: 0, subtasks: [] }, instructions: '' },
+      ];
+      
+      renderPlan();
+    }
+
+    function clearPlan(){
+      stopCooking();
+      state.readyTime = null;
+      state.items = [];
+      $('readyTime').value = '';
+      renderPlan();
+      $('timers').innerHTML = '';
+    }
+
+    // ********** Event Listeners **********
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize the plan view
+      renderPlan(); 
+
+      // Hook up button clicks
+      $('startBtn').addEventListener('click', startCooking);
+      $('stopBtn').addEventListener('click', stopCooking);
+      $('clearBtn').addEventListener('click', clearPlan);
+      $('loadSample').addEventListener('click', loadSample);
+      $('addItemBtn').addEventListener('click', () => {
+        state.items.push(makeEmptyItem());
+        renderPlan();
+      });
+      $('readyTime').addEventListener('change', (e) => {
+        const [h, m] = e.target.value.split(':').map(Number);
+        const date = now();
+        date.setHours(h, m, 0, 0); // Set time, keeping date part
+        state.readyTime = date;
+        renderTimeline();
+      });
+    });
   </script>
 </body>
 </html>
