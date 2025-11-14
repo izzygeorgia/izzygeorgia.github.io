@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CookSync — Smart Cooking Timers</title>
+  <style>
+    :root{--bg:#fff9f3;--card:#fff;--accent:#d35400;--muted:#666;--prep:#2e8b57;--cook:#d35400;--rest:#2b7ed9;--group:#7b61ff}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:var(--bg);color:#222}
+    header{padding:0.75rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+    h1{margin:0;color:var(--accent)}
+    main{display:flex;gap:1rem;padding:1rem}
+    .panel{background:var(--card);padding:1rem;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06);flex:1}
+    .small{font-size:0.9rem;color:var(--muted)}
+    .controls{display:flex;gap:0.5rem;margin-top:0.75rem}
+    button{background:var(--accent);color:white;border:none;padding:0.6rem 0.9rem;border-radius:10px;cursor:pointer}
+    button.secondary{background:#777}
+    .muted-btn{background:#eee;color:#333}
+
+    .item{border-radius:10px;padding:0.6rem;background:#faf6f4;margin-bottom:0.6rem}
+    .item-head{display:flex;gap:0.6rem;align-items:center}
+    .item-head input.name{flex:1;padding:0.45rem;border-radius:8px;border:1px solid #ddd}
+    .phase-row{display:flex;gap:0.45rem;margin-top:0.5rem}
+    .phase-row input{width:80px;padding:0.4rem;border-radius:6px;border:1px solid #ddd}
+    .mini{font-size:0.85rem;color:var(--muted)}
+    .subtasks{margin-top:0.5rem;padding-left:0.5rem}
+    .subtask{display:flex;gap:0.4rem;align-items:center;margin-bottom:0.35rem}
+    .subtask input[type=text]{flex:1;padding:0.4rem;border-radius:6px}
+    .subtask input[type=number]{width:72px;padding:0.35rem}
+    .subtask .offset{width:72px}
+
+    .timers{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0.75rem}
+    .timer-card{border-radius:10px;padding:0.8rem;box-shadow:0 3px 10px rgba(0,0,0,0.05);background:linear-gradient(180deg,#fff,#fff)}
+    .timer-title{font-weight:700}
+    .timer-digital{font-family:'Roboto Mono',monospace;font-size:1.8rem;margin-top:0.35rem}
+    .timer-phase{font-size:0.9rem;color:var(--muted);margin-top:0.25rem}
+    .timer-actions{display:flex;gap:0.5rem;margin-top:0.5rem}
+
+    .sidebar{width:420px}
+    .schedule-card{background:var(--card);padding:1rem;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+    .timeline{display:flex;flex-direction:column;gap:0.35rem;margin-top:0.6rem}
+    .time-row{display:flex;gap:0.6rem;align-items:flex-start}
+    .time-col{width:68px;text-align:right;font-weight:700;color:#333}
+    .events-col{flex:1}
+    .event-group{background:#fbf6ff;border-left:6px solid var(--group);padding:0.45rem;border-radius:8px}
+    .event{padding:0.25rem 0}
+    .event .tag{font-size:0.85rem;padding:0.12rem 0.35rem;border-radius:6px;margin-right:0.4rem}
+    .tag.prep{background:rgba(46,139,87,0.08);color:var(--prep)}
+    .tag.cook{background:rgba(211,84,0,0.07);color:var(--cook)}
+    .tag.rest{background:rgba(43,126,217,0.07);color:var(--rest)}
+
+    .banner{position:fixed;left:50%;transform:translateX(-50%);top:12px;background:rgba(255,255,255,0.98);padding:0.6rem 1rem;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.12);display:flex;gap:1rem;align-items:center}
+    .banner .big{font-weight:800;font-size:1.05rem}
+
+    .top-controls{display:flex;gap:0.5rem;align-items:center}
+    .muted{opacity:0.6}
+
+    @media(max-width:980px){main{flex-direction:column}.sidebar{width:100%}}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>CookSync</h1>
+      <div class="small">Smart backwards scheduler — grouped timeline & live timers</div>
+    </div>
+    <div class="top-controls">
+      <div class="mini" id="upNext">Up next: —</div>
+      <div class="mini" id="estimatedEating">Estimated eating: —</div>
+      <button id="saveBtn" class="muted-btn">Save</button>
+      <label class="mini" style="margin-left:8px">Sound:
+        <select id="soundSelect" class="mini" style="margin-left:6px;padding:4px">
+          <option value="ding">Kitchen ding (default)</option>
+          <option value="beep">Digital beep</option>
+          <option value="chime">Chime</option>
+          <option value="wood">Wood tap</option>
+        </select>
+      </label>
+      <button id="muteBtn" class="secondary">Mute</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel" id="planPanel">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <h2>Plan your meal</h2>
+          <div class="small">Click Start cooking to begin. You can collapse this panel to focus on timers.</div>
+        </div>
+        <button id="collapsePlan" class="muted-btn">Collapse plan</button>
+      </div>
+      <label class="mini" for="readyTime">Ready by</label>
+      <input type="time" id="readyTime" style="margin-top:6px" />
+
+      <div style="margin-top:0.6rem;display:flex;gap:0.5rem;align-items:center">
+        <button id="addItemBtn">+ Add item</button>
+        <button id="loadSample" class="secondary">Load sample</button>
+        <div style="flex:1"></div>
+        <button id="generateBtn" class="secondary">Generate</button>
+      </div>
+
+      <div id="items" style="margin-top:0.8rem"></div>
+
+      <div class="controls" style="margin-top:0.6rem">
+        <button id="startBtn">Start cooking</button>
+        <button id="clearBtn" class="secondary">Clear</button>
+      </div>
+
+      <hr style="margin:0.9rem 0">
+      <h3 style="margin:0 0 8px 0">Live timers</h3>
+      <div class="timers" id="timers"></div>
+    </section>
+
+    <aside class="sidebar">
+      <div class="schedule-card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">Timeline</h3>
+          <span id="toggleTimeline" class="mini collapse">Collapse</span>
+        </div>
+        <div class="small" style="margin-top:6px">Grouped events (click a time to expand)</div>
+        <div class="timeline" id="timeline"></div>
+      </div>
+    </aside>
+  </main>
+
+  <div id="banner" class="banner" style="display:none">
+    <div class="big">Started at <span id="startedAt">—</span></div>
+    <div class="big">Ends at <span id="endsAt">—</span></div>
+    <button id="stopBtn" class="secondary" style="margin-left:8px">Stop</button>
+  </div>
+
+  <script>
+    // ********** Data model **********
+    const state = { readyTime:null, items:[], schedule:[], running:false, startShift:0 };
+    const uid = () => Math.random().toString(36).slice(2,9);
+    const minutes = m => m*60000;
+    const fmtTime = d => d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const now = () => new Date();
+
+    function makeEmptyItem(){ return {id:uid(), name:'', prep:{duration:0, subtasks:[]}, cook:{duration:0, subtasks:[]}, rest:{duration:0, subtasks:[]}, instructions:''} }
+
+    function sumDur(list){ return list ? list.reduce((s,x)=>s+(Number(x.duration)||0),0) : 0; }
+
+    function buildSchedule(readyDate, items){
+      const events=[];
+      items.forEach(it=>{
+        const restDur = it.rest.duration || sumDur(it.rest.subtasks);
+        const cookDur = it.cook.duration || sumDur(it.cook.subtasks);
+        const prepDur = it.prep.duration || sumDur(it.prep.subtasks);
+
+        const restEnd = new Date(readyDate.getTime());
+        const restStart = new Date(restEnd.getTime() - minutes(restDur));
+        const cookEnd = new Date(restStart.getTime());
+        const cookStart = new Date(cookEnd.getTime() - minutes(cookDur));
+        const prepEnd = new Date(cookStart.getTime());
+        const prepStart = new Date(prepEnd.getTime() - minutes(prepDur));
+
+        if(it.prep.subtasks && it.prep.subtasks.length>0){
+          let cursor = new Date(prepStart.getTime());
+          it.prep.subtasks.forEach(s=>{
+            const start = new Date(cursor.getTime());
+            events.push({time:start, type:'prep', itemId:it.id, text:`${it.name||'Unnamed'} prep: ${s.name||''}`, duration:s.duration||0});
+            cursor = new Date(start.getTime() + minutes(s.duration||0));
+          });
+        } else if(prepDur>0){
+          events.push({time:prepStart,type:'prep',itemId:it.id,text:`${it.name||'Unnamed'} prep`,duration:prepDur});
+        }
+
+        events.push({time:cookStart,type:'cook',itemId:it.id,text:`Start cooking: ${it.name||'Unnamed'}`,duration:cookDur});
+        if(it.cook.subtasks && it.cook.subtasks.length>0){
+          it.cook.subtasks.forEach(s=>{
+            const t = new Date(cookStart.getTime() + minutes(s.offset||0));
+            events.push({time:t,type:'cook',itemId:it.id,text:`${it.name||'Unnamed'}: ${s.name||''}`,duration:s.duration||0,offset:s.offset||0});
+          });
+        }
+        events.push({time:restStart,type:'rest',itemId:it.id,text:`Remove ${it.name||'Unnamed'} — rest`,duration:restDur});
+      });
+      events.sort((a,b)=>a.time-b.time);
+      return events;
+    }
+  </script>
+</body>
+</html>
