@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CookSync Timer</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #fffaf6;
+      color: #333;
+      margin: 0;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      color: #d35400;
+      margin-bottom: 0.5rem;
+    }
+    form, .schedule {
+      width: 100%;
+      max-width: 600px;
+      background: white;
+      padding: 1.5rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+    label {
+      display: block;
+      margin: 0.5rem 0 0.25rem;
+    }
+    input {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 0.5rem;
+    }
+    button {
+      background: #d35400;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.25rem;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+    button:hover {
+      background: #b84300;
+    }
+    .dish {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .dish input {
+      flex: 1;
+    }
+    .timeline {
+      list-style: none;
+      padding: 0;
+    }
+    .timeline li {
+      background: #f9f3ef;
+      margin: 0.5rem 0;
+      padding: 0.75rem;
+      border-left: 4px solid #d35400;
+      border-radius: 0.25rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>CookSync Timer</h1>
+  <p>Plan your meal perfectly — enter what you’re cooking and when you want it ready.</p>
+
+  <form id="cookForm">
+    <label>Ready by (time):</label>
+    <input type="time" id="readyTime" required>
+
+    <div id="dishes"></div>
+
+    <button type="button" id="addDish">+ Add Dish</button><br>
+    <button type="submit">Generate Schedule</button>
+  </form>
+
+  <div class="schedule" id="schedule" style="display:none;">
+    <h2>Your Cooking Schedule</h2>
+    <ul class="timeline" id="timeline"></ul>
+  </div>
+
+  <script>
+    const dishesDiv = document.getElementById('dishes');
+    const addDishBtn = document.getElementById('addDish');
+    const form = document.getElementById('cookForm');
+    const scheduleDiv = document.getElementById('schedule');
+    const timeline = document.getElementById('timeline');
+
+    let dishCount = 0;
+
+    addDishBtn.addEventListener('click', () => {
+      dishCount++;
+      const div = document.createElement('div');
+      div.classList.add('dish');
+      div.innerHTML = `
+        <input type="text" placeholder="Dish name" required id="dishName${dishCount}">
+        <input type="number" placeholder="Time (minutes)" required id="dishTime${dishCount}">
+      `;
+      dishesDiv.appendChild(div);
+    });
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const readyBy = document.getElementById('readyTime').value;
+      if (!readyBy) return;
+
+      const readyDate = new Date();
+      const [hours, minutes] = readyBy.split(':').map(Number);
+      readyDate.setHours(hours, minutes, 0, 0);
+
+      const dishes = [];
+      for (let i = 1; i <= dishCount; i++) {
+        const name = document.getElementById(`dishName${i}`).value;
+        const mins = parseInt(document.getElementById(`dishTime${i}`).value);
+        if (name && mins) dishes.push({ name, mins });
+      }
+
+      // Sort dishes by cook time (longest first)
+      dishes.sort((a, b) => b.mins - a.mins);
+
+      timeline.innerHTML = '';
+      let schedule = [];
+
+      dishes.forEach(dish => {
+        const startTime = new Date(readyDate.getTime() - dish.mins * 60000);
+        schedule.push({
+          name: dish.name,
+          start: startTime,
+          finish: readyDate
+        });
+      });
+
+      schedule.sort((a,b) => a.start - b.start);
+
+      schedule.forEach(item => {
+        const startStr = item.start.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+        const finishStr = item.finish.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+        const li = document.createElement('li');
+        li.textContent = `${item.name}: Start at ${startStr}, finish by ${finishStr}`;
+        timeline.appendChild(li);
+      });
+
+      scheduleDiv.style.display = 'block';
+    });
+  </script>
+</body>
+</html>
